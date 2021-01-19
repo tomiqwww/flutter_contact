@@ -96,6 +96,14 @@ public class SwiftFlutterContactPlugin: NSObject, FlutterPlugin {
                     contact.takeFromDictionary(call.args)
                     let saved = try self.addContact(contact: contact)
                     result(saved.toDictionary(self.mode))
+                case "addContactToGroup":
+                    let contact = CNMutableContact()
+                    contact.takeFromDictionary(call.getDict("contact"))
+                    let groupId = call.getString("identifier")
+                    let group = try self.getGroupByIdentifier(identifier: groupId)
+                    let saved = try self.addContactToGroup(contact: contact, group: group)
+                    result(saved.toDictionary(self.mode))
+
                 case "deleteContact":
                     let deleted = try self.deleteContact(call.args)
                     result(deleted)
@@ -362,6 +370,18 @@ public class SwiftFlutterContactPlugin: NSObject, FlutterPlugin {
     }
     
     @available(iOS 9.0, *)
+    func addContactToGroup(contact : CNMutableContact, group : CNGroup) throws -> CNMutableContact  {
+        let store = CNContactStore()
+        let saveRequest = CNSaveRequest()
+
+        saveRequest.add(contact, toContainerWithIdentifier: nil)
+        saveRequest.addMember(contact, to: group)
+
+        try store.execute(saveRequest)
+        return contact
+    }
+
+    @available(iOS 9.0, *)
     func deleteContact(_ dictionary: [String:Any?]) throws -> Bool {
         let key = try contactKeyOf(dictionary["identifier"]!)
         let keys = [CNContactIdentifierKey as NSString]
@@ -440,6 +460,27 @@ public class SwiftFlutterContactPlugin: NSObject, FlutterPlugin {
             return nil
         }
     }
+
+    func getGroupByIdentifier(identifier: String?) throws -> CNGroup {
+            let store = CNContactStore()
+
+            let groups = try store.groups(matching: nil)
+
+            var result : CNGroup?
+
+            result = nil
+            for obj in groups {
+                if obj.identifier == identifier {
+                    result = obj
+                }
+            }
+        
+            if result == nil {
+                throw PluginError.runtimeError(code: "group.notFound", message: "Cannot find group by identifier")
+            }
+            
+            return result!
+        }
 }
 
 extension Date {
